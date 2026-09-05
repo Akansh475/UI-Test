@@ -10,22 +10,17 @@ import {
   Scenario, 
   TopologyNode, 
   TopologyEdge, 
-  AgentInfo, 
-  ReasoningStep,
-  VerdictType
+  AgentInfo 
 } from './types';
 import { soundManager } from './utils/audio';
 
-import { Header } from './components/Header';
-import { Hero } from './components/Hero';
 import { ThreeCanvas } from './components/ThreeCanvas';
-import { TopologyGraph } from './components/TopologyGraph';
-import { InvestigationSequence } from './components/InvestigationSequence';
-import { BlastRadiusView } from './components/BlastRadiusView';
-import { ReasoningPanel } from './components/ReasoningPanel';
-import { DecisionPanel } from './components/DecisionPanel';
-import { NodeDetailModal } from './components/NodeDetailModal';
-import { RemediationModal } from './components/RemediationModal';
+import { LivingEcosystem } from './components/LivingEcosystem';
+import { CinematicHero } from './components/CinematicHero';
+import { InvestigationOverlay } from './components/InvestigationOverlay';
+import { BlockCinematicScreen } from './components/BlockCinematicScreen';
+import { HolographicNodeHUD } from './components/HolographicNodeHUD';
+import { PatchModal } from './components/PatchModal';
 import { CommandPalette } from './components/CommandPalette';
 
 export function App() {
@@ -33,27 +28,23 @@ export function App() {
   const [currentScenario, setCurrentScenario] = useState<Scenario>(DEMO_SCENARIOS[0]);
   const [commandInput, setCommandInput] = useState(DEMO_SCENARIOS[0].command);
 
-  // Investigation Simulation State
-  const [isInvestigating, setIsInvestigating] = useState(false);
-  const [simulationStep, setSimulationStep] = useState(0); // 0: Idle, 1: Submitted, 2: Supervisor, 3: Agents Running, 4: Complete
-  const [simulationElapsedMs, setSimulationElapsedMs] = useState(0);
-  const [propagationProgress, setPropagationProgress] = useState(0); // 0 - 100%
+  // Investigation Phases: 'idle' -> 'swarming' -> 'propagating' -> 'verdict'
+  const [investigationPhase, setInvestigationPhase] = useState<'idle' | 'swarming' | 'propagating' | 'verdict'>('idle');
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const [propagationWave, setPropagationWave] = useState(0); // 0 to 100%
 
-  // Topology and Agents state
+  // Topology Nodes and Edges
   const [nodes, setNodes] = useState<TopologyNode[]>(INITIAL_TOPOLOGY_NODES);
   const [edges, setEdges] = useState<TopologyEdge[]>(TOPOLOGY_EDGES);
   const [agents, setAgents] = useState<AgentInfo[]>(SPECIALIST_AGENTS);
-  const [reasoningSteps, setReasoningSteps] = useState<ReasoningStep[]>(
-    SIMULATION_REASONING_STEPS['delete-subnet-07'] || []
-  );
 
-  // UI Modals
-  const [inspectedNode, setInspectedNode] = useState<TopologyNode | null>(null);
-  const [isRemediationOpen, setIsRemediationOpen] = useState(false);
+  // Focus and Modals
+  const [selectedNode, setSelectedNode] = useState<TopologyNode | null>(null);
+  const [isBlockScreenOpen, setIsBlockScreenOpen] = useState(false);
+  const [isPatchModalOpen, setIsPatchModalOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
-  const mainInvestigationRef = useRef<HTMLDivElement>(null);
-  const simulationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
 
   // Initialize audio on mount
@@ -61,360 +52,279 @@ export function App() {
     soundManager.init();
   }, []);
 
-  // Keyboard shortcut for Cmd+K
+  // Keyboard shortcut for Cmd + K
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setIsCommandPaletteOpen(prev => !prev);
       }
+      if (e.key === 'Escape') {
+        if (isBlockScreenOpen) setIsBlockScreenOpen(false);
+        if (selectedNode) setSelectedNode(null);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isBlockScreenOpen, selectedNode]);
 
-  // Execute Signature 5-8 Second Simulation Sequence
-  const runInvestigation = (scenarioToRun: Scenario) => {
-    if (isInvestigating) return;
-
-    setIsInvestigating(true);
-    setSimulationStep(1); // Step 1: Change Submitted
-    setSimulationElapsedMs(0);
-    setPropagationProgress(0);
+  // Execute the 6-Second Cinematic Investigation Sequence
+  const runCinematicSequence = (scenarioToRun: Scenario) => {
+    // Phase 1: Swarming (T+0.0s)
+    setInvestigationPhase('swarming');
+    setElapsedMs(0);
+    setPropagationWave(0);
+    setIsBlockScreenOpen(false);
+    setSelectedNode(null);
     startTimeRef.current = Date.now();
 
-    // Reset agents to idle
-    setAgents(SPECIALIST_AGENTS.map(a => ({ ...a, status: 'idle', currentFinding: undefined })));
+    soundManager.playCinematicImpact();
 
-    soundManager.playSonar();
+    // Reset agents to initial state
+    setAgents(SPECIALIST_AGENTS.map(a => ({
+      ...a,
+      status: 'scanning',
+      currentFinding: 'Locking onto topology coordinate...'
+    })));
 
-    // Smooth scroll down to the investigation zone
+    // Real-time elapsed clock
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setElapsedMs(Date.now() - startTimeRef.current);
+    }, 40);
+
+    // Phase 2: Risk Wavefront Propagation (T+1.4s)
     setTimeout(() => {
-      mainInvestigationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 400);
+      setInvestigationPhase('propagating');
+      soundManager.playAgentLock(880);
 
-    // Timeline tracker
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startTimeRef.current;
-      setSimulationElapsedMs(elapsed);
-    }, 50);
-    simulationTimerRef.current = interval;
-
-    // Timeline Event: Step 2 - Supervisor Dispatched (0.8s)
-    setTimeout(() => {
-      setSimulationStep(2);
-      soundManager.playBlip(750);
-    }, 800);
-
-    // Timeline Event: Step 3 - Specialist Agents Swarm (1.6s)
-    setTimeout(() => {
-      setSimulationStep(3);
-      soundManager.playBlip(920);
-
-      // Launch all 6 specialist agents into scanning / analyzing
+      // Transition agents into deep analysis
       setAgents(prev => prev.map((a, idx) => ({
         ...a,
-        status: idx % 2 === 0 ? 'scanning' : 'analyzing',
-        currentFinding: 'Tracing network topology DAG & IAM boundaries...'
+        status: idx % 2 === 0 ? 'warning' : 'analyzing',
+        currentFinding: idx === 0 
+          ? '7 Active ENIs bound to subnet-07' 
+          : idx === 1 
+          ? 'SPOF detected in AZ-a NAT gateway'
+          : 'Evaluating cascade risk...'
       })));
-    }, 1600);
+    }, 1400);
 
-    // Wavefront blast propagation progress animation (1.6s to 4.5s)
-    const waveStart = 1600;
-    const waveDuration = 3000;
+    // Expanding shockwave progress (T+1.4s to T+5.0s)
+    const waveStart = 1400;
+    const waveDuration = 3600;
     const waveInterval = setInterval(() => {
-      const elapsed = Date.now() - startTimeRef.current;
-      if (elapsed >= waveStart) {
-        const progress = Math.min(((elapsed - waveStart) / waveDuration) * 100, 100);
-        setPropagationProgress(progress);
-        if (progress >= 100) {
-          clearInterval(waveInterval);
-        }
+      const current = Date.now() - startTimeRef.current;
+      if (current >= waveStart) {
+        const wave = Math.min(((current - waveStart) / waveDuration) * 100, 100);
+        setPropagationWave(wave);
+        if (wave >= 100) clearInterval(waveInterval);
       }
-    }, 50);
+    }, 40);
 
-    // Staggered Agent Findings delivery
-    const steps = SIMULATION_REASONING_STEPS[scenarioToRun.id] || SIMULATION_REASONING_STEPS['delete-subnet-07'];
-    setReasoningSteps(steps);
-
-    steps.forEach((step, idx) => {
+    // Staggered satellite audio pings
+    [2200, 2900, 3600, 4300].forEach((delay, i) => {
       setTimeout(() => {
-        soundManager.playBlip(800 + idx * 70);
-        setAgents(prev => prev.map(a => {
-          if (step.agent.toLowerCase().includes(a.name.toLowerCase().split(' ')[0])) {
-            return {
-              ...a,
-              status: step.severity === 'critical' ? 'warning' : 'analyzing',
-              currentFinding: step.finding,
-              confidence: step.confidence
-            };
-          }
-          return a;
-        }));
-      }, 2000 + idx * 500);
+        soundManager.playAgentLock(700 + i * 110);
+      }, delay);
     });
 
-    // Step 4: Final Verdict Enforced (5.4s - dramatic climax)
+    // Phase 3: Dramatic Climax & Full-Screen BLOCK Moment (T+5.6s)
     setTimeout(() => {
-      setSimulationStep(4);
-      setIsInvestigating(false);
-      setPropagationProgress(100);
-      if (simulationTimerRef.current) clearInterval(simulationTimerRef.current);
+      setInvestigationPhase('verdict');
+      setPropagationWave(100);
+      if (timerRef.current) clearInterval(timerRef.current);
 
-      // Finalize agents to complete or warning
       setAgents(prev => prev.map(a => ({
         ...a,
         status: scenarioToRun.verdict === 'BLOCK' ? 'warning' : 'complete'
       })));
 
-      // Audio climax
+      // Audio climax: Deep alert brass and ominous sub-bass
       if (scenarioToRun.verdict === 'BLOCK') {
-        soundManager.playWarning();
+        soundManager.playDramaticBlock();
       } else {
-        soundManager.playSuccess();
+        soundManager.playResolve();
       }
-    }, 5400);
+
+      // Trigger the dramatic full-screen moment!
+      setIsBlockScreenOpen(true);
+    }, 5600);
   };
 
-  const handleAnalyzeCommand = (cmd: string) => {
-    // Check if matched to existing preset
+  const handleAnalyze = (cmd: string) => {
     const matched = DEMO_SCENARIOS.find(
       s => s.command.toLowerCase().trim() === cmd.toLowerCase().trim()
     );
 
     if (matched) {
       setCurrentScenario(matched);
-      runInvestigation(matched);
+      runCinematicSequence(matched);
     } else {
-      // Dynamic scenario generator for ANY custom user input
+      // Dynamic scenario creation for custom commands
       const isDangerous = cmd.toLowerCase().includes('delete') || 
         cmd.toLowerCase().includes('destroy') || 
         cmd.toLowerCase().includes('terminate') || 
-        cmd.toLowerCase().includes('drop') ||
         cmd.toLowerCase().includes('revoke');
 
       const customScenario: Scenario = {
         id: `custom-${Date.now()}`,
         command: cmd,
         targetResourceId: 'subnet-07',
-        title: `Dynamic Evaluation: "${cmd}"`,
+        title: `Dynamic Blast Evaluation: "${cmd}"`,
         category: 'Network',
         riskLevel: isDangerous ? 'CRITICAL' : 'LOW',
         verdict: isDangerous ? 'BLOCK' : 'APPROVE',
         verdictSubtitle: isDangerous
-          ? `Destructive action "${cmd}" threatens critical production dependencies.`
-          : `Change "${cmd}" passed all blast radius perimeter safety checks.`,
-        blastRadiusScore: isDangerous ? 9.2 : 1.4,
-        directlyAffectedCount: isDangerous ? 6 : 1,
-        indirectlyAffectedCount: isDangerous ? 9 : 0,
+          ? `Destructive action "${cmd}" threatens critical production dependencies without standby routes.`
+          : `Change "${cmd}" verified safe with zero production blast radius.`,
+        blastRadiusScore: isDangerous ? 9.4 : 1.2,
+        directlyAffectedCount: isDangerous ? 7 : 1,
+        indirectlyAffectedCount: isDangerous ? 11 : 0,
         criticalDependency: isDangerous ? 'Payment Gateway Core' : 'None',
-        revenueAtRiskPerMin: isDangerous ? 42000 : 0,
-        impactedTps: isDangerous ? 12400 : 0,
-        directImpactNodeIds: isDangerous ? ['subnet-07', 'api-gw-prod-v2', 'checkout-order-processor'] : [],
-        indirectImpactNodeIds: isDangerous ? ['aurora-cluster-pg-15', 'sqs-high-priority-transactions'] : [],
+        revenueAtRiskPerMin: isDangerous ? 48500 : 0,
+        impactedTps: isDangerous ? 14200 : 0,
+        directImpactNodeIds: isDangerous ? ['subnet-07', 'api-gw-prod-v2', 'checkout-order-processor', 'nat-gw-prod-01', 'cache-cluster-session-m6g'] : [],
+        indirectImpactNodeIds: isDangerous ? ['aurora-cluster-pg-15', 'sqs-high-priority-transactions', 'fraud-detection-engine'] : [],
         policyViolations: isDangerous ? [
           {
             id: 'POL-DYN-01',
-            rule: 'enforce_production_redundancy',
+            rule: 'soc2_tier0_redundancy_quorum',
             framework: 'SOC2',
-            description: 'Unplanned resource termination without pre-warmed standby route violates zero-downtime policy.',
+            description: 'Physical network route teardown without pre-warmed failover violates zero-downtime policy.',
             severity: 'CRITICAL'
           }
         ] : [],
-        terraformDiff: `- # CUSTOM PLAN DESTRUCTION:\n- ${cmd}`,
-        safeRemediationTerraform: `# Remediation for: ${cmd}\n# Standby failover created prior to deletion.`
+        terraformDiff: `- ${cmd}`,
+        safeRemediationTerraform: `# Autonomous pre-drain failover patch for: ${cmd}\n# Multi-AZ route tables associated.`
       };
 
       setCurrentScenario(customScenario);
-      runInvestigation(customScenario);
+      runCinematicSequence(customScenario);
     }
   };
 
-  const handleSelectScenario = (scenario: Scenario) => {
-    setCurrentScenario(scenario);
-    setCommandInput(scenario.command);
-    runInvestigation(scenario);
+  const handleSelectScenario = (sc: Scenario) => {
+    setCurrentScenario(sc);
+    setCommandInput(sc.command);
+    runCinematicSequence(sc);
   };
 
-  const handleResetInvestigation = () => {
+  const handleReset = () => {
     soundManager.playClick();
-    setSimulationStep(0);
-    setPropagationProgress(0);
-    setAgents(SPECIALIST_AGENTS.map(a => ({ ...a, status: 'idle', currentFinding: undefined })));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setInvestigationPhase('idle');
+    setIsBlockScreenOpen(false);
+    setSelectedNode(null);
+    setPropagationWave(0);
+    setAgents(SPECIALIST_AGENTS);
   };
 
-  const handleRemediationSuccess = () => {
-    // Transform verdict to approved after applying patch
+  const handleApplyPatchSuccess = () => {
     setCurrentScenario(prev => ({
       ...prev,
       verdict: 'APPROVE',
       riskLevel: 'LOW',
       blastRadiusScore: 0.8,
-      verdictSubtitle: 'Remediation patch active: Ingress route successfully drained to multi-AZ failover.'
+      verdictSubtitle: 'Autonomous failover patch active: Traffic successfully drained to multi-AZ redundant routes.'
     }));
   };
 
-  const isCriticalMode = currentScenario.verdict === 'BLOCK' && simulationStep === 4;
+  const isBlasting = investigationPhase === 'propagating' || investigationPhase === 'verdict';
 
   return (
-    <div className="relative min-h-screen bg-[#05070A] text-slate-100 selection:bg-cyan-500/25 selection:text-cyan-300 font-sans antialiased overflow-x-hidden">
-      {/* 3D React Three Fiber Background with floating nodes & particle network */}
-      <ThreeCanvas isCritical={isCriticalMode} />
+    <div className="relative w-screen h-screen overflow-hidden bg-[#05070A] text-slate-100 font-sans antialiased select-none">
+      {/* 3D React Three Fiber Depth Particles */}
+      <ThreeCanvas isCritical={isBlasting && currentScenario.verdict === 'BLOCK'} />
 
-      {/* Top Mission Control Header */}
-      <Header 
-        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
-        onTriggerSignatureDemo={() => {
-          const s1 = DEMO_SCENARIOS[0];
-          setCurrentScenario(s1);
-          setCommandInput(s1.command);
-          runInvestigation(s1);
-        }}
+      {/* Centerpiece: The Living Cloud Ecosystem (Full Viewport Graph) */}
+      <LivingEcosystem
+        nodes={nodes}
+        edges={edges}
+        targetNodeId={currentScenario.targetResourceId}
+        directImpactIds={isBlasting ? currentScenario.directImpactNodeIds : []}
+        indirectImpactIds={isBlasting ? currentScenario.indirectImpactNodeIds : []}
+        investigationPhase={investigationPhase}
+        propagationWave={propagationWave}
+        selectedNode={selectedNode}
+        onSelectNode={setSelectedNode}
       />
 
-      <main className="relative z-10">
-        {/* Full-Screen Cinematic Hero */}
-        <Hero
-          currentCommand={commandInput}
-          onChangeCommand={setCommandInput}
-          onAnalyze={handleAnalyzeCommand}
-          isInvestigating={isInvestigating}
-          scenarios={DEMO_SCENARIOS}
-          onSelectScenario={handleSelectScenario}
-        />
+      {/* Floating Cinematic Hero (Visible in 'idle' phase) */}
+      <CinematicHero
+        currentCommand={commandInput}
+        onChangeCommand={setCommandInput}
+        onAnalyze={handleAnalyze}
+        scenarios={DEMO_SCENARIOS}
+        onSelectScenario={handleSelectScenario}
+        investigationPhase={investigationPhase}
+        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+      />
 
-        {/* Live Investigation Command Center Area */}
-        <div ref={mainInvestigationRef} className="max-w-7xl mx-auto px-4 py-8 space-y-10">
-          
-          {/* Section 1: Supervisor & 6 Specialist Agents Flow */}
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-xs font-mono font-bold text-cyan-400 uppercase tracking-wider">
-                  MULTI-AGENT SWARM
-                </span>
-                <h2 className="text-2xl font-extrabold text-slate-100 tracking-tight">
-                  Autonomous Investigation Engine
-                </h2>
-              </div>
-              <span className="text-xs font-mono text-slate-500">
-                6 Specialist Agents • Deterministic Consensus
-              </span>
-            </div>
+      {/* Floating Minimalist Investigation Overlay (Telemetry bar & Agent Satellites) */}
+      <InvestigationOverlay
+        investigationPhase={investigationPhase}
+        currentCommand={commandInput}
+        elapsedMs={elapsedMs}
+        propagationWave={propagationWave}
+        agents={agents}
+      />
 
-            <InvestigationSequence
-              agents={agents}
-              currentStep={simulationStep}
-              elapsedMs={simulationElapsedMs}
-              reasoningSteps={reasoningSteps}
-            />
-          </section>
+      {/* Dramatic Full-Screen BLOCK Moment (Sci-Fi Climax) */}
+      <BlockCinematicScreen
+        scenario={currentScenario}
+        isOpen={isBlockScreenOpen}
+        onOpenPatch={() => setIsPatchModalOpen(true)}
+        onInspectGraph={() => setIsBlockScreenOpen(false)}
+        onReset={handleReset}
+      />
 
-          {/* Section 2: Interactive Infrastructure Dependency Graph (The Centerpiece) */}
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-xs font-mono font-bold text-cyan-400 uppercase tracking-wider">
-                  TOPOLOGY CENTERPIECE
-                </span>
-                <h2 className="text-2xl font-extrabold text-slate-100 tracking-tight">
-                  Interactive Infrastructure Dependency Graph
-                </h2>
-              </div>
-              <span className="text-xs font-mono text-slate-400">
-                Drag to pan • Scroll to zoom • Click node to inspect
-              </span>
-            </div>
-
-            <TopologyGraph
-              nodes={nodes}
-              edges={edges}
-              targetNodeId={currentScenario.targetResourceId}
-              directImpactIds={simulationStep >= 3 ? currentScenario.directImpactNodeIds : []}
-              indirectImpactIds={simulationStep >= 3 ? currentScenario.indirectImpactNodeIds : []}
-              isInvestigating={isInvestigating}
-              propagationProgress={propagationProgress}
-              onSelectNode={(node) => setInspectedNode(node)}
-            />
-          </section>
-
-          {/* Section 3: Blast Radius Visualization (Concentric rings & Heatmaps) */}
-          <section className="space-y-4">
-            <BlastRadiusView
-              scenario={currentScenario}
-              nodes={nodes}
-              onSelectNode={(node) => setInspectedNode(node)}
-            />
-          </section>
-
-          {/* Section 4: AI Chain-of-Thought Reasoning Panel */}
-          <section className="space-y-4">
-            <ReasoningPanel
-              scenario={currentScenario}
-              reasoningSteps={reasoningSteps}
-              nodes={nodes}
-              onSelectNode={(node) => setInspectedNode(node)}
-            />
-          </section>
-
-          {/* Section 5: Dramatic Final Decision Screen (BLOCK / REVIEW / APPROVE) */}
-          {simulationStep >= 4 && (
-            <section className="space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
-              <DecisionPanel
-                scenario={currentScenario}
-                onResetInvestigation={handleResetInvestigation}
-                onOpenRemediationModal={() => setIsRemediationOpen(true)}
-              />
-            </section>
-          )}
-
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="relative z-10 mt-20 border-t border-slate-800/80 bg-[#05070A]/90 py-10 px-4 text-center font-mono text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span className="text-slate-300 font-semibold">Sentinel AI Daemon v4.2.0-prod</span>
-            <span>• Mission Control for Cloud Infrastructure</span>
-          </div>
-          <div className="flex items-center gap-4 text-slate-400">
-            <span>AWS GovCloud Certified</span>
-            <span>•</span>
-            <span>SOC2 Type II</span>
-            <span>•</span>
-            <span>PCI-DSS 4.0 Compliant</span>
-          </div>
-        </div>
-      </footer>
-
-      {/* Deep-Dive Node Inspection Modal */}
-      <NodeDetailModal
-        node={inspectedNode}
-        onClose={() => setInspectedNode(null)}
-        isDirectImpact={Boolean(inspectedNode && currentScenario.directImpactNodeIds.includes(inspectedNode.id))}
-        isIndirectImpact={Boolean(inspectedNode && currentScenario.indirectImpactNodeIds.includes(inspectedNode.id))}
+      {/* Floating Holographic Node Inspector HUD (when clicking any node on canvas) */}
+      <HolographicNodeHUD
+        node={selectedNode}
+        isDirectImpact={Boolean(selectedNode && currentScenario.directImpactNodeIds.includes(selectedNode.id))}
+        isIndirectImpact={Boolean(selectedNode && currentScenario.indirectImpactNodeIds.includes(selectedNode.id))}
+        onClose={() => setSelectedNode(null)}
       />
 
       {/* Auto-Remediation Terraform Patch Modal */}
-      <RemediationModal
+      <PatchModal
         scenario={currentScenario}
-        isOpen={isRemediationOpen}
-        onClose={() => setIsRemediationOpen(false)}
-        onApplySuccess={handleRemediationSuccess}
+        isOpen={isPatchModalOpen}
+        onClose={() => setIsPatchModalOpen(false)}
+        onApplySuccess={handleApplyPatchSuccess}
       />
 
-      {/* Command Palette (Cmd + K) */}
+      {/* Global Command Palette (Cmd + K) */}
       <CommandPalette
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
         scenarios={DEMO_SCENARIOS}
         nodes={nodes}
         onSelectScenario={handleSelectScenario}
-        onSelectNode={(node) => setInspectedNode(node)}
+        onSelectNode={(node) => setSelectedNode(node)}
       />
+
+      {/* Bottom Floating Minimalist Reset / Re-run Bar when exploring post-investigation */}
+      {investigationPhase !== 'idle' && !isBlockScreenOpen && (
+        <div className="fixed bottom-6 right-6 z-40 flex items-center gap-3 pointer-events-auto">
+          <button
+            onClick={() => {
+              soundManager.playClick();
+              setIsBlockScreenOpen(true);
+            }}
+            className="px-4 py-2 rounded-full bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/50 text-rose-300 font-mono text-xs backdrop-blur-2xl transition-all shadow-[0_0_20px_rgba(255,46,77,0.3)] hover:scale-105"
+          >
+            <span>View BLOCK Verdict</span>
+          </button>
+
+          <button
+            onClick={handleReset}
+            className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-mono text-xs backdrop-blur-2xl transition-colors"
+          >
+            <span>New Simulation</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
-// Enterprise Audio Synthesizer for Sentinel AI Mission Control
-// Uses Web Audio API to create authentic tactical radar, scanner, and alert sounds
+// Cinematic Sound Engine for Sentinel AI
+// Uses Web Audio API to create authentic sci-fi movie-grade sound effects
 
 let audioCtx: AudioContext | null = null;
 let isMuted = false;
@@ -36,7 +36,7 @@ export const soundManager = {
     }
   },
 
-  // Subtle mechanical high-precision click
+  // Subtle mechanical high-tech click
   playClick: () => {
     if (isMuted) return;
     try {
@@ -45,31 +45,95 @@ export const soundManager = {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(1400, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.03);
+      osc.frequency.setValueAtTime(1800, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.025);
       gain.gain.setValueAtTime(0.04, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.025);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
-      osc.stop(ctx.currentTime + 0.03);
+      osc.stop(ctx.currentTime + 0.025);
     } catch {
-      // Audio context might be blocked prior to user interaction
+      // Audio context waiting
     }
   },
 
-  // Tactical data ping on agent findings
+  // Tactical blip alias
   playBlip: (freq = 880) => {
+    soundManager.playAgentLock(freq);
+  },
+
+  // Sonar radar sweep alias
+  playSonar: () => {
+    soundManager.playCinematicImpact();
+  },
+
+  // Warning alias
+  playWarning: () => {
+    soundManager.playDramaticBlock();
+  },
+
+  // Success alias
+  playSuccess: () => {
+    soundManager.playResolve();
+  },
+
+  // Cinematic Sub-Bass Impact Boom (when initiating analysis)
+  playCinematicImpact: () => {
+    if (isMuted) return;
+    try {
+      const ctx = getAudioContext();
+      if (!ctx) return;
+      
+      const sub = ctx.createOscillator();
+      const subGain = ctx.createGain();
+      sub.type = 'sine';
+      sub.frequency.setValueAtTime(120, ctx.currentTime);
+      sub.frequency.exponentialRampToValueAtTime(32, ctx.currentTime + 0.8);
+      subGain.gain.setValueAtTime(0.3, ctx.currentTime);
+      subGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+      sub.connect(subGain);
+      subGain.connect(ctx.destination);
+      sub.start();
+      sub.stop(ctx.currentTime + 0.8);
+
+      const bufferSize = ctx.sampleRate * 0.5;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(800, ctx.currentTime);
+      filter.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.5);
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.12, ctx.currentTime);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      noise.connect(filter);
+      filter.connect(noiseGain);
+      noiseGain.connect(ctx.destination);
+      noise.start();
+      noise.stop(ctx.currentTime + 0.5);
+    } catch {
+      // ignore
+    }
+  },
+
+  // Sci-Fi Agent Satellite Lock Ping
+  playAgentLock: (pitch = 880) => {
     if (isMuted) return;
     try {
       const ctx = getAudioContext();
       if (!ctx) return;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(freq * 1.5, ctx.currentTime + 0.08);
-      gain.gain.setValueAtTime(0.05, ctx.currentTime);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(pitch, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(pitch * 1.6, ctx.currentTime + 0.08);
+      gain.gain.setValueAtTime(0.07, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -80,78 +144,48 @@ export const soundManager = {
     }
   },
 
-  // Sonar radar sweep / investigation start
-  playSonar: () => {
+  // Dramatic Full-Screen BLOCK Climax Alert (Low ominous drone + brassy pulse)
+  playDramaticBlock: () => {
     if (isMuted) return;
     try {
       const ctx = getAudioContext();
       if (!ctx) return;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(440, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(980, ctx.currentTime + 0.35);
-      gain.gain.setValueAtTime(0.08, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.4);
+
+      [65.41, 130.81, 164.81].forEach((freq) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.95, ctx.currentTime + 1.2);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 1.2);
+      });
     } catch {
       // ignore
     }
   },
 
-  // Deep warning alert pulse when BLOCK state or critical failure detected
-  playWarning: () => {
+  // Harmonic Resolve Tone
+  playResolve: () => {
     if (isMuted) return;
     try {
       const ctx = getAudioContext();
       if (!ctx) return;
-      const osc1 = ctx.createOscillator();
-      const osc2 = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc1.type = 'sawtooth';
-      osc2.type = 'sine';
-      osc1.frequency.setValueAtTime(160, ctx.currentTime);
-      osc1.frequency.exponentialRampToValueAtTime(110, ctx.currentTime + 0.5);
-      osc2.frequency.setValueAtTime(320, ctx.currentTime);
-      osc2.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.5);
-
-      gain.gain.setValueAtTime(0.09, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
-
-      osc1.connect(gain);
-      osc2.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc1.start();
-      osc2.start();
-      osc1.stop(ctx.currentTime + 0.55);
-      osc2.stop(ctx.currentTime + 0.55);
-    } catch {
-      // ignore
-    }
-  },
-
-  // Harmonic chime when safe / approved
-  playSuccess: () => {
-    if (isMuted) return;
-    try {
-      const ctx = getAudioContext();
-      if (!ctx) return;
-      [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+      [440, 554.37, 659.25, 880].forEach((freq, i) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.08);
-        gain.gain.setValueAtTime(0.05, ctx.currentTime + i * 0.08);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.08 + 0.3);
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.06);
+        gain.gain.setValueAtTime(0.06, ctx.currentTime + i * 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.06 + 0.5);
         osc.connect(gain);
         gain.connect(ctx.destination);
-        osc.start(ctx.currentTime + i * 0.08);
-        osc.stop(ctx.currentTime + i * 0.08 + 0.3);
+        osc.start(ctx.currentTime + i * 0.06);
+        osc.stop(ctx.currentTime + i * 0.06 + 0.5);
       });
     } catch {
       // ignore
