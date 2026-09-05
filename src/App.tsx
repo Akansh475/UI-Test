@@ -1,330 +1,275 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Volume2, VolumeX, ArrowRight, CornerDownLeft, Sparkles, Check } from 'lucide-react';
 import { 
   DEMO_SCENARIOS, 
   INITIAL_TOPOLOGY_NODES, 
-  TOPOLOGY_EDGES, 
-  SPECIALIST_AGENTS, 
-  SIMULATION_REASONING_STEPS 
+  TOPOLOGY_EDGES 
 } from './data/scenarios';
-import { 
-  Scenario, 
-  TopologyNode, 
-  TopologyEdge, 
-  AgentInfo 
-} from './types';
+import { Scenario, TopologyNode, TopologyEdge } from './types';
 import { soundManager } from './utils/audio';
 
-import { ThreeCanvas } from './components/ThreeCanvas';
-import { LivingEcosystem } from './components/LivingEcosystem';
-import { CinematicHero } from './components/CinematicHero';
-import { InvestigationOverlay } from './components/InvestigationOverlay';
-import { BlockCinematicScreen } from './components/BlockCinematicScreen';
-import { HolographicNodeHUD } from './components/HolographicNodeHUD';
-import { PatchModal } from './components/PatchModal';
-import { CommandPalette } from './components/CommandPalette';
+import { MinimalGraph } from './components/MinimalGraph';
+import { MinimalPatchModal } from './components/MinimalPatchModal';
+
+type AppState = 'idle' | 'analyzing' | 'decision';
 
 export function App() {
-  // Scenario state
+  const [appState, setAppState] = useState<AppState>('idle');
   const [currentScenario, setCurrentScenario] = useState<Scenario>(DEMO_SCENARIOS[0]);
   const [commandInput, setCommandInput] = useState(DEMO_SCENARIOS[0].command);
-
-  // Investigation Phases: 'idle' -> 'swarming' -> 'propagating' -> 'verdict'
-  const [investigationPhase, setInvestigationPhase] = useState<'idle' | 'swarming' | 'propagating' | 'verdict'>('idle');
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const [propagationWave, setPropagationWave] = useState(0); // 0 to 100%
-
-  // Topology Nodes and Edges
-  const [nodes, setNodes] = useState<TopologyNode[]>(INITIAL_TOPOLOGY_NODES);
-  const [edges, setEdges] = useState<TopologyEdge[]>(TOPOLOGY_EDGES);
-  const [agents, setAgents] = useState<AgentInfo[]>(SPECIALIST_AGENTS);
-
-  // Focus and Modals
-  const [selectedNode, setSelectedNode] = useState<TopologyNode | null>(null);
-  const [isBlockScreenOpen, setIsBlockScreenOpen] = useState(false);
-  const [isPatchModalOpen, setIsPatchModalOpen] = useState(false);
-  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [waveProgress, setWaveProgress] = useState(0); // 0 to 100
+  const [isPatchOpen, setIsPatchOpen] = useState(false);
+  const [isMuted, setIsMuted] = useState(soundManager.isMuted());
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startTimeRef = useRef<number>(0);
 
-  // Initialize audio on mount
   useEffect(() => {
     soundManager.init();
   }, []);
 
-  // Keyboard shortcut for Cmd + K
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setIsCommandPaletteOpen(prev => !prev);
-      }
-      if (e.key === 'Escape') {
-        if (isBlockScreenOpen) setIsBlockScreenOpen(false);
-        if (selectedNode) setSelectedNode(null);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isBlockScreenOpen, selectedNode]);
+  const handleToggleSound = () => {
+    const muted = soundManager.toggleMute();
+    setIsMuted(muted);
+    if (!muted) soundManager.playClick();
+  };
 
-  // Execute the 6-Second Cinematic Investigation Sequence
-  const runCinematicSequence = (scenarioToRun: Scenario) => {
-    // Phase 1: Swarming (T+0.0s)
-    setInvestigationPhase('swarming');
-    setElapsedMs(0);
-    setPropagationWave(0);
-    setIsBlockScreenOpen(false);
-    setSelectedNode(null);
-    startTimeRef.current = Date.now();
+  const handleStartAnalysis = (scenarioToRun: Scenario) => {
+    if (appState === 'analyzing') return;
 
+    setAppState('analyzing');
+    setWaveProgress(0);
     soundManager.playCinematicImpact();
 
-    // Reset agents to initial state
-    setAgents(SPECIALIST_AGENTS.map(a => ({
-      ...a,
-      status: 'scanning',
-      currentFinding: 'Locking onto topology coordinate...'
-    })));
+    // Smooth wave progress over 4.2 seconds
+    const start = Date.now();
+    const duration = 4200;
 
-    // Real-time elapsed clock
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
-      setElapsedMs(Date.now() - startTimeRef.current);
-    }, 40);
+      const elapsed = Date.now() - start;
+      const progress = Math.min((elapsed / duration) * 100, 100);
+      setWaveProgress(progress);
 
-    // Phase 2: Risk Wavefront Propagation (T+1.4s)
-    setTimeout(() => {
-      setInvestigationPhase('propagating');
-      soundManager.playAgentLock(880);
-
-      // Transition agents into deep analysis
-      setAgents(prev => prev.map((a, idx) => ({
-        ...a,
-        status: idx % 2 === 0 ? 'warning' : 'analyzing',
-        currentFinding: idx === 0 
-          ? '7 Active ENIs bound to subnet-07' 
-          : idx === 1 
-          ? 'SPOF detected in AZ-a NAT gateway'
-          : 'Evaluating cascade risk...'
-      })));
-    }, 1400);
-
-    // Expanding shockwave progress (T+1.4s to T+5.0s)
-    const waveStart = 1400;
-    const waveDuration = 3600;
-    const waveInterval = setInterval(() => {
-      const current = Date.now() - startTimeRef.current;
-      if (current >= waveStart) {
-        const wave = Math.min(((current - waveStart) / waveDuration) * 100, 100);
-        setPropagationWave(wave);
-        if (wave >= 100) clearInterval(waveInterval);
+      if (progress >= 100) {
+        clearInterval(timerRef.current!);
+        setAppState('decision');
+        if (scenarioToRun.verdict === 'BLOCK') {
+          soundManager.playDramaticBlock();
+        } else {
+          soundManager.playResolve();
+        }
       }
     }, 40);
-
-    // Staggered satellite audio pings
-    [2200, 2900, 3600, 4300].forEach((delay, i) => {
-      setTimeout(() => {
-        soundManager.playAgentLock(700 + i * 110);
-      }, delay);
-    });
-
-    // Phase 3: Dramatic Climax & Full-Screen BLOCK Moment (T+5.6s)
-    setTimeout(() => {
-      setInvestigationPhase('verdict');
-      setPropagationWave(100);
-      if (timerRef.current) clearInterval(timerRef.current);
-
-      setAgents(prev => prev.map(a => ({
-        ...a,
-        status: scenarioToRun.verdict === 'BLOCK' ? 'warning' : 'complete'
-      })));
-
-      // Audio climax: Deep alert brass and ominous sub-bass
-      if (scenarioToRun.verdict === 'BLOCK') {
-        soundManager.playDramaticBlock();
-      } else {
-        soundManager.playResolve();
-      }
-
-      // Trigger the dramatic full-screen moment!
-      setIsBlockScreenOpen(true);
-    }, 5600);
   };
 
-  const handleAnalyze = (cmd: string) => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commandInput.trim()) return;
+
     const matched = DEMO_SCENARIOS.find(
-      s => s.command.toLowerCase().trim() === cmd.toLowerCase().trim()
+      s => s.command.toLowerCase().trim() === commandInput.toLowerCase().trim()
     );
 
-    if (matched) {
-      setCurrentScenario(matched);
-      runCinematicSequence(matched);
-    } else {
-      // Dynamic scenario creation for custom commands
-      const isDangerous = cmd.toLowerCase().includes('delete') || 
-        cmd.toLowerCase().includes('destroy') || 
-        cmd.toLowerCase().includes('terminate') || 
-        cmd.toLowerCase().includes('revoke');
+    const scenario = matched || {
+      ...DEMO_SCENARIOS[0],
+      command: commandInput,
+      title: commandInput
+    };
 
-      const customScenario: Scenario = {
-        id: `custom-${Date.now()}`,
-        command: cmd,
-        targetResourceId: 'subnet-07',
-        title: `Dynamic Blast Evaluation: "${cmd}"`,
-        category: 'Network',
-        riskLevel: isDangerous ? 'CRITICAL' : 'LOW',
-        verdict: isDangerous ? 'BLOCK' : 'APPROVE',
-        verdictSubtitle: isDangerous
-          ? `Destructive action "${cmd}" threatens critical production dependencies without standby routes.`
-          : `Change "${cmd}" verified safe with zero production blast radius.`,
-        blastRadiusScore: isDangerous ? 9.4 : 1.2,
-        directlyAffectedCount: isDangerous ? 7 : 1,
-        indirectlyAffectedCount: isDangerous ? 11 : 0,
-        criticalDependency: isDangerous ? 'Payment Gateway Core' : 'None',
-        revenueAtRiskPerMin: isDangerous ? 48500 : 0,
-        impactedTps: isDangerous ? 14200 : 0,
-        directImpactNodeIds: isDangerous ? ['subnet-07', 'api-gw-prod-v2', 'checkout-order-processor', 'nat-gw-prod-01', 'cache-cluster-session-m6g'] : [],
-        indirectImpactNodeIds: isDangerous ? ['aurora-cluster-pg-15', 'sqs-high-priority-transactions', 'fraud-detection-engine'] : [],
-        policyViolations: isDangerous ? [
-          {
-            id: 'POL-DYN-01',
-            rule: 'soc2_tier0_redundancy_quorum',
-            framework: 'SOC2',
-            description: 'Physical network route teardown without pre-warmed failover violates zero-downtime policy.',
-            severity: 'CRITICAL'
-          }
-        ] : [],
-        terraformDiff: `- ${cmd}`,
-        safeRemediationTerraform: `# Autonomous pre-drain failover patch for: ${cmd}\n# Multi-AZ route tables associated.`
-      };
-
-      setCurrentScenario(customScenario);
-      runCinematicSequence(customScenario);
-    }
+    setCurrentScenario(scenario);
+    handleStartAnalysis(scenario);
   };
 
-  const handleSelectScenario = (sc: Scenario) => {
-    setCurrentScenario(sc);
-    setCommandInput(sc.command);
-    runCinematicSequence(sc);
+  const handleSelectPreset = (scenario: Scenario) => {
+    soundManager.playClick();
+    setCommandInput(scenario.command);
+    setCurrentScenario(scenario);
+    handleStartAnalysis(scenario);
   };
 
   const handleReset = () => {
     soundManager.playClick();
-    setInvestigationPhase('idle');
-    setIsBlockScreenOpen(false);
-    setSelectedNode(null);
-    setPropagationWave(0);
-    setAgents(SPECIALIST_AGENTS);
+    if (timerRef.current) clearInterval(timerRef.current);
+    setAppState('idle');
+    setWaveProgress(0);
   };
 
-  const handleApplyPatchSuccess = () => {
-    setCurrentScenario(prev => ({
-      ...prev,
-      verdict: 'APPROVE',
-      riskLevel: 'LOW',
-      blastRadiusScore: 0.8,
-      verdictSubtitle: 'Autonomous failover patch active: Traffic successfully drained to multi-AZ redundant routes.'
-    }));
-  };
-
-  const isBlasting = investigationPhase === 'propagating' || investigationPhase === 'verdict';
+  const isImpacted = appState === 'decision' || (appState === 'analyzing' && waveProgress > 50);
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-[#05070A] text-slate-100 font-sans antialiased select-none">
-      {/* 3D React Three Fiber Depth Particles */}
-      <ThreeCanvas isCritical={isBlasting && currentScenario.verdict === 'BLOCK'} />
-
-      {/* Centerpiece: The Living Cloud Ecosystem (Full Viewport Graph) */}
-      <LivingEcosystem
-        nodes={nodes}
-        edges={edges}
+    <div className="relative w-screen h-screen overflow-hidden bg-black text-zinc-100 font-sans antialiased select-none">
+      {/* 1. Monochromatic Living Infrastructure Graph (Primary Visual Centerpiece) */}
+      <MinimalGraph
+        nodes={INITIAL_TOPOLOGY_NODES}
+        edges={TOPOLOGY_EDGES}
         targetNodeId={currentScenario.targetResourceId}
-        directImpactIds={isBlasting ? currentScenario.directImpactNodeIds : []}
-        indirectImpactIds={isBlasting ? currentScenario.indirectImpactNodeIds : []}
-        investigationPhase={investigationPhase}
-        propagationWave={propagationWave}
-        selectedNode={selectedNode}
-        onSelectNode={setSelectedNode}
+        directImpactIds={currentScenario.directImpactNodeIds}
+        indirectImpactIds={currentScenario.indirectImpactNodeIds}
+        isInvestigating={appState === 'analyzing'}
+        isImpacted={isImpacted}
+        waveProgress={waveProgress}
       />
 
-      {/* Floating Cinematic Hero (Visible in 'idle' phase) */}
-      <CinematicHero
-        currentCommand={commandInput}
-        onChangeCommand={setCommandInput}
-        onAnalyze={handleAnalyze}
-        scenarios={DEMO_SCENARIOS}
-        onSelectScenario={handleSelectScenario}
-        investigationPhase={investigationPhase}
-        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
-      />
-
-      {/* Floating Minimalist Investigation Overlay (Telemetry bar & Agent Satellites) */}
-      <InvestigationOverlay
-        investigationPhase={investigationPhase}
-        currentCommand={commandInput}
-        elapsedMs={elapsedMs}
-        propagationWave={propagationWave}
-        agents={agents}
-      />
-
-      {/* Dramatic Full-Screen BLOCK Moment (Sci-Fi Climax) */}
-      <BlockCinematicScreen
-        scenario={currentScenario}
-        isOpen={isBlockScreenOpen}
-        onOpenPatch={() => setIsPatchModalOpen(true)}
-        onInspectGraph={() => setIsBlockScreenOpen(false)}
-        onReset={handleReset}
-      />
-
-      {/* Floating Holographic Node Inspector HUD (when clicking any node on canvas) */}
-      <HolographicNodeHUD
-        node={selectedNode}
-        isDirectImpact={Boolean(selectedNode && currentScenario.directImpactNodeIds.includes(selectedNode.id))}
-        isIndirectImpact={Boolean(selectedNode && currentScenario.indirectImpactNodeIds.includes(selectedNode.id))}
-        onClose={() => setSelectedNode(null)}
-      />
-
-      {/* Auto-Remediation Terraform Patch Modal */}
-      <PatchModal
-        scenario={currentScenario}
-        isOpen={isPatchModalOpen}
-        onClose={() => setIsPatchModalOpen(false)}
-        onApplySuccess={handleApplyPatchSuccess}
-      />
-
-      {/* Global Command Palette (Cmd + K) */}
-      <CommandPalette
-        isOpen={isCommandPaletteOpen}
-        onClose={() => setIsCommandPaletteOpen(false)}
-        scenarios={DEMO_SCENARIOS}
-        nodes={nodes}
-        onSelectScenario={handleSelectScenario}
-        onSelectNode={(node) => setSelectedNode(node)}
-      />
-
-      {/* Bottom Floating Minimalist Reset / Re-run Bar when exploring post-investigation */}
-      {investigationPhase !== 'idle' && !isBlockScreenOpen && (
-        <div className="fixed bottom-6 right-6 z-40 flex items-center gap-3 pointer-events-auto">
-          <button
-            onClick={() => {
-              soundManager.playClick();
-              setIsBlockScreenOpen(true);
-            }}
-            className="px-4 py-2 rounded-full bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/50 text-rose-300 font-mono text-xs backdrop-blur-2xl transition-all shadow-[0_0_20px_rgba(255,46,77,0.3)] hover:scale-105"
-          >
-            <span>View BLOCK Verdict</span>
-          </button>
-
-          <button
-            onClick={handleReset}
-            className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-mono text-xs backdrop-blur-2xl transition-colors"
-          >
-            <span>New Simulation</span>
-          </button>
+      {/* 2. Quiet Minimalist Navigation Header */}
+      <header className="fixed top-8 left-8 right-8 z-40 flex items-center justify-between pointer-events-none">
+        <div className="flex items-center gap-2 pointer-events-auto">
+          <span className="w-2 h-2 rounded-full bg-cyan-400" />
+          <span className="text-sm font-semibold tracking-tight text-white">Sentinel</span>
         </div>
-      )}
+
+        <button
+          onClick={handleToggleSound}
+          className="pointer-events-auto text-zinc-500 hover:text-white transition-colors p-2 rounded-full"
+          title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
+        >
+          {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+        </button>
+      </header>
+
+      {/* 3. Typography-First Interaction Layer (Maximum Whitespace & Editorial Clarity) */}
+      <main className="relative z-30 w-full h-full flex flex-col justify-between px-8 sm:px-16 py-20 pointer-events-none">
+        
+        {/* Center Content Box */}
+        <div className="my-auto max-w-2xl pointer-events-auto">
+          
+          {/* STATE 1: IDLE */}
+          {appState === 'idle' && (
+            <div className="space-y-8 animate-in fade-in duration-500">
+              {/* Massive Headline */}
+              <h1 className="text-5xl sm:text-7xl font-bold tracking-tight text-white leading-[1.05]">
+                Before you deploy,{' '}
+                <span className="text-zinc-500">know what breaks.</span>
+              </h1>
+
+              {/* Subtitle */}
+              <p className="text-lg text-zinc-400 font-normal leading-relaxed max-w-xl">
+                Predict the blast radius of infrastructure changes before production.
+              </p>
+
+              {/* Minimal Linear/Raycast-Style Command Input */}
+              <form onSubmit={handleSubmit} className="pt-2">
+                <div className="flex items-center gap-3 p-2 pl-4 rounded-2xl bg-zinc-900/60 border border-white/10 max-w-lg backdrop-blur-2xl focus-glow-cyan transition-all">
+                  <input
+                    type="text"
+                    value={commandInput}
+                    onChange={(e) => setCommandInput(e.target.value)}
+                    placeholder="Enter change, e.g. Delete subnet-07"
+                    className="w-full bg-transparent text-sm text-white placeholder-zinc-500 focus:outline-none font-mono"
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    className="flex-shrink-0 px-4 py-2 rounded-xl bg-white text-black text-xs font-medium hover:bg-zinc-200 transition-all flex items-center gap-1.5 active:scale-95"
+                  >
+                    <span>Analyze</span>
+                    <CornerDownLeft className="w-3 h-3 text-zinc-600" />
+                  </button>
+                </div>
+              </form>
+
+              {/* Subtle Preset Links */}
+              <div className="flex items-center gap-4 text-xs text-zinc-500 font-mono pt-1">
+                <span>Presets:</span>
+                {DEMO_SCENARIOS.map((sc) => (
+                  <button
+                    key={sc.id}
+                    onClick={() => handleSelectPreset(sc)}
+                    className="hover:text-zinc-300 transition-colors underline underline-offset-4 decoration-zinc-700"
+                  >
+                    {sc.command}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* STATE 2: ANALYZING */}
+          {appState === 'analyzing' && (
+            <div className="space-y-6 animate-in fade-in duration-500">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-xs font-mono text-cyan-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                <span>Simulating Dependency Propagation</span>
+              </div>
+
+              <h1 className="text-4xl sm:text-6xl font-bold tracking-tight text-white leading-[1.1]">
+                Analyzing impact of <br />
+                <span className="text-cyan-300 font-mono text-3xl sm:text-5xl">{currentScenario.command}</span>
+              </h1>
+
+              <p className="text-sm text-zinc-400 font-mono">
+                Tracing VPC routes, ENIs, and downstream caller pools in us-east-1...
+              </p>
+
+              <button
+                onClick={handleReset}
+                className="text-xs text-zinc-500 hover:text-white transition-colors underline underline-offset-4 font-mono pt-2 block"
+              >
+                Cancel simulation
+              </button>
+            </div>
+          )}
+
+          {/* STATE 3: DECISION (Maximum Clarity, Zero Clutter) */}
+          {appState === 'decision' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              {/* Devastatingly Clear Decision Badge */}
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-950/60 border border-red-500/40 text-xs font-mono text-red-400 font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                <span>Block Deployment</span>
+              </div>
+
+              {/* Big Bold Headline Answering The One Question */}
+              <h1 className="text-5xl sm:text-7xl font-extrabold tracking-tight text-white leading-[1.05]">
+                {currentScenario.directlyAffectedCount} services <br />
+                <span className="text-red-400">will fail.</span>
+              </h1>
+
+              {/* Calm, Intelligent Explanation */}
+              <p className="text-base sm:text-lg text-zinc-300 font-light leading-relaxed max-w-lg">
+                Deleting <code className="text-white font-mono text-sm bg-zinc-900 px-1.5 py-0.5 rounded">subnet-07</code> severs physical ingress in us-east-1a, dropping 14,200 active payment requests with zero automated failover.
+              </p>
+
+              {/* Minimal Primary and Secondary Actions */}
+              <div className="flex flex-wrap items-center gap-4 pt-2">
+                <button
+                  onClick={() => {
+                    soundManager.playClick();
+                    setIsPatchOpen(true);
+                  }}
+                  className="px-6 py-3 rounded-full bg-white text-black font-medium text-sm hover:bg-zinc-200 transition-all flex items-center gap-2 shadow-lg active:scale-95"
+                >
+                  <Sparkles className="w-4 h-4 text-black" />
+                  <span>Generate safe migration patch</span>
+                </button>
+
+                <button
+                  onClick={handleReset}
+                  className="px-5 py-3 rounded-full text-zinc-400 hover:text-white text-sm transition-colors"
+                >
+                  Simulate another change
+                </button>
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        {/* Quiet Footer Note */}
+        <div className="text-xs text-zinc-600 font-mono flex items-center justify-between">
+          <span>Sentinel Blast Radius Intelligence</span>
+          <span>Deterministic DAG Evaluation</span>
+        </div>
+      </main>
+
+      {/* Safe Migration Patch Modal */}
+      <MinimalPatchModal
+        scenario={currentScenario}
+        isOpen={isPatchOpen}
+        onClose={() => setIsPatchOpen(false)}
+        onApplySuccess={() => {
+          handleReset();
+        }}
+      />
     </div>
   );
 }
