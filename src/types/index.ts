@@ -22,14 +22,16 @@ export interface TopologyNode {
   region: string;
   arn: string;
   status: 'healthy' | 'degraded' | 'critical';
-  x: number; // 0 to 1000 coordinate space
+  x: number;
   y: number;
+  // 3D Spatial coordinates in WebGL space
+  pos3D?: [number, number, number];
   blastState?: NodeBlastState;
   impactReason?: string;
   tps?: number;
   latencyMs?: number;
   cpuPercent?: number;
-  dependencies: string[]; // ids this node calls or depends on
+  dependencies: string[];
 }
 
 export interface TopologyEdge {
@@ -85,7 +87,7 @@ export interface Scenario {
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   verdict: VerdictType;
   verdictSubtitle: string;
-  blastRadiusScore: number; // 0.0 - 10.0
+  blastRadiusScore: number;
   directlyAffectedCount: number;
   indirectlyAffectedCount: number;
   criticalDependency: string;
