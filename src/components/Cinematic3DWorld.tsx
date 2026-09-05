@@ -18,14 +18,14 @@ interface Cinematic3DWorldProps {
   mousePos: { x: number; y: number };
 }
 
-// Camera choreography coordinates per section
+// Camera choreography coordinates per section calibrated for centered spatial typography
 const SECTION_CAMERAS: Record<number, { pos: [number, number, number]; lookAt: [number, number, number] }> = {
-  1: { pos: [0, 1.5, 14], lookAt: [0, 0, 0] },         // Hero: Wide atmospheric establishing view
-  2: { pos: [3.2, 0.5, 9], lookAt: [0.5, -0.5, 0] },    // Ecosystem: Moving into the living cloud architecture
-  3: { pos: [-4.2, 2.5, 7.5], lookAt: [-1, 0, 0] },    // AI Agents: High-angle analytical vantage
-  4: { pos: [-2.0, -1.2, 5.5], lookAt: [-2.5, -0.8, 1] }, // Dependencies: Macro causality strands
-  5: { pos: [-3.4, 0.4, 5.2], lookAt: [-3.8, 0.8, 0.4] }, // Simulation: Focused directly on Ground Zero (subnet-07)
-  6: { pos: [0, 0, 8.5], lookAt: [0, 0, 0] }           // Verdict: Symmetrical, authoritative spatial climax
+  1: { pos: [0, 0.4, 15], lookAt: [0, 0, 0] },          // Hero: Wide atmospheric establishing view
+  2: { pos: [1.8, -0.6, 11.2], lookAt: [0, 0, 0] },     // Ecosystem: Inside the living cloud constellation
+  3: { pos: [-2.4, 1.4, 9.5], lookAt: [0, 0, 0] },      // AI Agents: High-angle analytical perspective
+  4: { pos: [-1.4, -0.8, 7.8], lookAt: [-0.5, 0, 0] },  // Dependencies: Organic causality filaments
+  5: { pos: [-3.2, 0.6, 6.0], lookAt: [-3.8, 1.0, 0.2] }, // Simulation: Locked onto Ground Zero (subnet-07)
+  6: { pos: [0, 0, 8.8], lookAt: [0, 0, 0] }            // Verdict: Symmetrical, authoritative spatial climax
 };
 
 // Smooth Camera Controller

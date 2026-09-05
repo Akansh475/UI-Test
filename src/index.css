@@ -4,45 +4,42 @@
 
 @layer base {
   :root {
-    --bg-primary: #000000;
-    --border-subtle: rgba(255, 255, 255, 0.08);
+    --bg-primary: #050507;
+    --border-subtle: rgba(255, 255, 255, 0.06);
   }
 
   body {
-    background-color: #000000;
-    color: #F4F4F5;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    letter-spacing: -0.015em;
+    background-color: #070709;
+    color: #FAFAF9;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    letter-spacing: -0.02em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
   }
 }
 
-/* Monochromatic minimal dot matrix */
-.minimal-dots {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
-  background-size: 32px 32px;
+.tracking-editorial {
+  letter-spacing: -0.05em;
 }
 
-/* Subtle single cyan focus glow */
-.focus-glow-cyan:focus-within {
-  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.4), 0 0 30px -5px rgba(56, 189, 248, 0.15);
+.tracking-widest-spatial {
+  letter-spacing: 0.35em;
 }
 
-/* Subtle danger glow */
-.danger-glow {
-  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.4), 0 0 40px -5px rgba(239, 68, 68, 0.2);
+/* Subtle frosted spatial glass */
+.glass-spatial {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Clean minimal scrollbars */
+/* Invisible scrollbars */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  display: none;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #27272A;
-  border-radius: 2px;
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
