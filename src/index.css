@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-primary: #05070a;
+    --bg-secondary: #0b0f17;
+    --border-dim: rgba(255, 255, 255, 0.08);
+    --border-accent: rgba(0, 240, 255, 0.3);
+  }
+
+  * {
+    border-color: var(--border-dim);
+  }
+
+  body {
+    background-color: #05070a;
+    color: #e2e8f0;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+/* Futuristic background grid */
+.cyber-grid {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+}
+
+.cyber-dots {
+  background-image: radial-gradient(rgba(0, 240, 255, 0.15) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.radar-gradient {
+  background: conic-gradient(
+    from 0deg,
+    rgba(0, 240, 255, 0.25) 0deg,
+    rgba(0, 240, 255, 0.05) 60deg,
+    transparent 90deg,
+    transparent 360deg
+  );
+}
+
+/* Glassmorphic enterprise HUD panels */
+.hud-panel {
+  background: rgba(11, 15, 23, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.hud-panel-danger {
+  background: rgba(25, 7, 12, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 46, 77, 0.35);
+  box-shadow: 0 8px 32px 0 rgba(255, 46, 77, 0.15), inset 0 0 0 1px rgba(255, 46, 77, 0.2);
+}
+
+/* Glowing text and borders */
+.glow-text-cyan {
+  text-shadow: 0 0 16px rgba(0, 240, 255, 0.6);
+}
+
+.glow-text-red {
+  text-shadow: 0 0 18px rgba(255, 46, 77, 0.7);
+}
+
+.glow-text-amber {
+  text-shadow: 0 0 16px rgba(255, 179, 0, 0.6);
+}
+
+.glow-box-cyan {
+  box-shadow: 0 0 24px -2px rgba(0, 240, 255, 0.35);
+}
+
+.glow-box-red {
+  box-shadow: 0 0 35px -2px rgba(255, 46, 77, 0.45);
+}
+
+/* Custom terminal scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #070a0f;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
